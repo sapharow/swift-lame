@@ -730,7 +730,7 @@ int CDECL lame_encode_buffer (
  */
 int CDECL lame_encode_buffer_interleaved(
         lame_global_flags*  gfp,           /* global context handlei        */
-        short int           pcm[],         /* PCM data for left and right
+        const short int     pcm[],         /* PCM data for left and right
                                               channel, interleaved          */
         int                 num_samples,   /* number of samples per channel,
                                               _not_ number of samples in

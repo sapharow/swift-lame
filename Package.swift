@@ -7,17 +7,12 @@ let package = Package(
     name: "swift-lame",
     platforms: [
         .macOS(.v10_13), .iOS(.v12), .tvOS(.v12)
-        ],
+    ],
     products: [
-        // Products define the executables and libraries a package produces, making them visible to other packages.
-        .library(
-            name: "lame",
-            targets: ["lame"]),
+        .library(name: "SwiftLame", targets: ["SwiftLame"]),
     ],
     targets: [
-        // Targets are the basic building blocks of a package, defining a module or a test suite.
-        // Targets can depend on other targets in this package and products from dependencies.
-        .target(
-            name: "lame"),
-    ]
+        .target(name: "liblame", path: "Sources/lame", cSettings: [.headerSearchPath("libmp3lame/include")]),
+        .target(name: "SwiftLame", dependencies: ["liblame"], path: "Sources/SwiftLame")
+    ],
 )

@@ -1999,7 +1999,7 @@ lame_encode_buffer_long(lame_global_flags * gfp,
 
 int
 lame_encode_buffer_interleaved(lame_global_flags * gfp,
-                               short int pcm[], int nsamples,
+                               const short int pcm[], int nsamples,
                                unsigned char *mp3buf, int mp3buf_size)
 {
     /* input is assumed to be normalized to +/- MAX_SHORT for full scale */
