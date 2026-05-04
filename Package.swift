@@ -9,7 +9,7 @@ let package = Package(
         .macOS(.v10_13), .iOS(.v12), .tvOS(.v12)
     ],
     products: [
-        .library(name: "SwiftLame", targets: ["SwiftLame"]),
+        .library(name: "SwiftLame", type: .dynamic, targets: ["SwiftLame"]),
     ],
     targets: [
         .target(name: "liblame", path: "Sources/lame", cSettings: [.headerSearchPath("libmp3lame/include")]),
