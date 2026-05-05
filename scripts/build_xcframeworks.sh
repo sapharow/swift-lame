@@ -186,22 +186,16 @@ xcodebuild -create-xcframework \
 
 if [[ "$ZIP_ASSETS" == true ]]; then
   rm -f \
-    "$OUTPUT_ABS/SwiftLame-${VERSION_TAG}.xcframework.zip" \
-    "$OUTPUT_ABS/lamemp3-${VERSION_TAG}.xcframework.zip" \
     "$OUTPUT_ABS/SwiftLame.xcframework.zip" \
     "$OUTPUT_ABS/lamemp3.xcframework.zip" \
     "$OUTPUT_ABS/SHA256SUMS.txt"
 
   (
     cd "$OUTPUT_ABS"
-    ditto -c -k --sequesterRsrc --keepParent "SwiftLame.xcframework" "SwiftLame-${VERSION_TAG}.xcframework.zip"
-    ditto -c -k --sequesterRsrc --keepParent "lamemp3.xcframework" "lamemp3-${VERSION_TAG}.xcframework.zip"
-    cp "SwiftLame-${VERSION_TAG}.xcframework.zip" "SwiftLame.xcframework.zip"
-    cp "lamemp3-${VERSION_TAG}.xcframework.zip" "lamemp3.xcframework.zip"
+    ditto -c -k --sequesterRsrc --keepParent "SwiftLame.xcframework" "SwiftLame.xcframework.zip"
+    ditto -c -k --sequesterRsrc --keepParent "lamemp3.xcframework" "lamemp3.xcframework.zip"
 
     shasum -a 256 \
-      "SwiftLame-${VERSION_TAG}.xcframework.zip" \
-      "lamemp3-${VERSION_TAG}.xcframework.zip" \
       "SwiftLame.xcframework.zip" \
       "lamemp3.xcframework.zip" \
       > "SHA256SUMS.txt"

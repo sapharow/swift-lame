@@ -41,9 +41,13 @@ jobs:
             RELEASE_TAG="${INPUT_RELEASE_TAG}"
           else
             VERSION_HEADER="Sources/lame/libmp3lame/include/version.h"
-            MAJOR="$(awk '/LAME_MAJOR_VERSION/ {print $3; exit}' "${VERSION_HEADER}")"
-            MINOR="$(awk '/LAME_MINOR_VERSION/ {print $3; exit}' "${VERSION_HEADER}")"
-            PATCH="$(awk '/LAME_PATCH_VERSION/ {print $3; exit}' "${VERSION_HEADER}")"
+            MAJOR="$(awk '/^# *define +LAME_MAJOR_VERSION +[0-9]+/ {print $4; exit}' "${VERSION_HEADER}")"
+            MINOR="$(awk '/^# *define +LAME_MINOR_VERSION +[0-9]+/ {print $4; exit}' "${VERSION_HEADER}")"
+            PATCH="$(awk '/^# *define +LAME_PATCH_VERSION +[0-9]+/ {print $4; exit}' "${VERSION_HEADER}")"
+            if [[ -z "${MAJOR}" || -z "${MINOR}" || -z "${PATCH}" ]]; then
+              echo "Failed to parse LAME version from ${VERSION_HEADER}" >&2
+              exit 1
+            fi
             RELEASE_TAG="${MAJOR}.${MINOR}.${PATCH}"
           fi
 
@@ -85,8 +89,17 @@ jobs:
               --notes "Automated prebuilt XCFramework assets."
           fi
 
+          # Remove previously uploaded version-suffixed XCFramework assets.
+          while IFS= read -r asset_name; do
+            case "$asset_name" in
+              SwiftLame-*.xcframework.zip|lamemp3-*.xcframework.zip)
+                gh release delete-asset "$RELEASE_TAG" "$asset_name" -y
+                ;;
+            esac
+          done < <(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name')
+
           gh release upload "$RELEASE_TAG" \
-            "artifacts/SwiftLame-${RELEASE_TAG}.xcframework.zip" \
-            "artifacts/lamemp3-${RELEASE_TAG}.xcframework.zip" \
+            "artifacts/SwiftLame.xcframework.zip" \
+            "artifacts/lamemp3.xcframework.zip" \
             artifacts/SHA256SUMS.txt \
             --clobber
