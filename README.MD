@@ -95,3 +95,25 @@ func encodePcmToMp3(_ pcm: [Int16], sampleRate: Int = 44_100, channels: Int = 2)
 LAME is released under the [GNU Lesser General Public License v3.0](./LICENSE).
 Commercial use and distribution requirements are your responsibility, including license notice
 compliance and dynamic-linking/relinking obligations where applicable.
+
+## Prebuilt XCFrameworks
+
+Every push to `main` builds and publishes two dynamic XCFramework assets to the stable
+GitHub Release tag `main-latest`:
+
+- `SwiftLame.xcframework.zip`
+- `lamemp3.xcframework.zip` (public C header is limited to `lame.h`)
+
+Pull requests to `main` run the same full XCFramework build but do not publish release assets.
+
+To re-publish assets for an existing version release (for example `3.100.0`) without code
+changes, run the `Build XCFrameworks` workflow manually (`workflow_dispatch`) with:
+
+- `source_ref`: the tag/commit to build
+- `release_tag`: the existing release tag to overwrite assets on
+
+### Local build
+
+```bash
+scripts/build_xcframeworks.sh --output-dir artifacts --zip
+```

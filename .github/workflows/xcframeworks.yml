@@ -1,0 +1,85 @@
+name: Build XCFrameworks
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: "Git ref to build (branch, tag, or SHA)"
+        required: false
+        default: "main"
+      release_tag:
+        description: "Existing GitHub Release tag to re-publish assets to (for example 3.100.0)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.source_ref || github.ref }}
+
+      - name: Build XCFrameworks
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          chmod +x scripts/build_xcframeworks.sh
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && -n "${RELEASE_TAG}" ]]; then
+            VERSION_TAG="${RELEASE_TAG}"
+          else
+            VERSION_TAG="${GITHUB_SHA::12}"
+          fi
+          scripts/build_xcframeworks.sh --output-dir artifacts --version-tag "$VERSION_TAG" --zip
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcframeworks-${{ github.sha }}
+          path: |
+            artifacts/*.zip
+            artifacts/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish to stable release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view main-latest >/dev/null 2>&1; then
+            gh release create main-latest \
+              --title "main-latest" \
+              --notes "Automated prebuilt XCFramework assets from main."
+          fi
+
+          gh release upload main-latest \
+            artifacts/*.zip \
+            artifacts/SHA256SUMS.txt \
+            --clobber
+
+      - name: Re-publish to existing release tag
+        if: github.event_name == 'workflow_dispatch' && inputs.release_tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          gh release view "$RELEASE_TAG" >/dev/null 2>&1
+
+          gh release upload "$RELEASE_TAG" \
+            "artifacts/SwiftLame-${RELEASE_TAG}.xcframework.zip" \
+            "artifacts/lamemp3-${RELEASE_TAG}.xcframework.zip" \
+            artifacts/SHA256SUMS.txt \
+            --clobber

@@ -9,6 +9,7 @@ let package = Package(
         .macOS(.v10_13), .iOS(.v12), .tvOS(.v12)
     ],
     products: [
+        .library(name: "lamemp3", type: .dynamic, targets: ["liblame"]),
         .library(name: "SwiftLame", type: .dynamic, targets: ["SwiftLame"]),
     ],
     targets: [
