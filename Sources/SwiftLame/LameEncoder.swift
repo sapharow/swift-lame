@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import liblame
+@_implementationOnly import liblame
 import os
 
 /// Encodes interleaved 16-bit PCM to MP3 via liblame.
