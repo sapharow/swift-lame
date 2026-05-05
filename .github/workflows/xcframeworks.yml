@@ -12,7 +12,7 @@ on:
         required: false
         default: "main"
       release_tag:
-        description: "Existing GitHub Release tag to re-publish assets to (for example 3.100.0)"
+        description: "Release tag/title override (default: parsed from LAME version.h)"
         required: false
         default: ""
 
@@ -32,15 +32,32 @@ jobs:
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.source_ref || github.ref }}
 
+      - name: Resolve release tag
+        id: release_tag
+        env:
+          INPUT_RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          if [[ -n "${INPUT_RELEASE_TAG}" ]]; then
+            RELEASE_TAG="${INPUT_RELEASE_TAG}"
+          else
+            VERSION_HEADER="Sources/lame/libmp3lame/include/version.h"
+            MAJOR="$(awk '/LAME_MAJOR_VERSION/ {print $3; exit}' "${VERSION_HEADER}")"
+            MINOR="$(awk '/LAME_MINOR_VERSION/ {print $3; exit}' "${VERSION_HEADER}")"
+            PATCH="$(awk '/LAME_PATCH_VERSION/ {print $3; exit}' "${VERSION_HEADER}")"
+            RELEASE_TAG="${MAJOR}.${MINOR}.${PATCH}"
+          fi
+
+          echo "release_tag=${RELEASE_TAG}" >> "${GITHUB_OUTPUT}"
+
       - name: Build XCFrameworks
         env:
-          RELEASE_TAG: ${{ inputs.release_tag }}
+          RELEASE_TAG: ${{ steps.release_tag.outputs.release_tag }}
         run: |
           chmod +x scripts/build_xcframeworks.sh
-          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && -n "${RELEASE_TAG}" ]]; then
-            VERSION_TAG="${RELEASE_TAG}"
-          else
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
             VERSION_TAG="${GITHUB_SHA::12}"
+          else
+            VERSION_TAG="${RELEASE_TAG}"
           fi
           scripts/build_xcframeworks.sh --output-dir artifacts --version-tag "$VERSION_TAG" --zip
 
@@ -54,29 +71,19 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Publish to stable release
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      - name: Publish to versioned release
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release_tag.outputs.release_tag }}
         run: |
-          if ! gh release view main-latest >/dev/null 2>&1; then
-            gh release create main-latest \
-              --title "main-latest" \
-              --notes "Automated prebuilt XCFramework assets from main."
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release edit "$RELEASE_TAG" --title "$RELEASE_TAG"
+          else
+            gh release create "$RELEASE_TAG" \
+              --title "$RELEASE_TAG" \
+              --notes "Automated prebuilt XCFramework assets."
           fi
-
-          gh release upload main-latest \
-            artifacts/*.zip \
-            artifacts/SHA256SUMS.txt \
-            --clobber
-
-      - name: Re-publish to existing release tag
-        if: github.event_name == 'workflow_dispatch' && inputs.release_tag != ''
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ inputs.release_tag }}
-        run: |
-          gh release view "$RELEASE_TAG" >/dev/null 2>&1
 
           gh release upload "$RELEASE_TAG" \
             "artifacts/SwiftLame-${RELEASE_TAG}.xcframework.zip" \

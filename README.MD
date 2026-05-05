@@ -98,8 +98,9 @@ compliance and dynamic-linking/relinking obligations where applicable.
 
 ## Prebuilt XCFrameworks
 
-Every push to `main` builds and publishes two dynamic XCFramework assets to the stable
-GitHub Release tag `main-latest`:
+Every push to `main` builds and publishes two dynamic XCFramework assets to a GitHub
+Release where both tag and title are derived from
+`Sources/lame/libmp3lame/include/version.h` (for example `3.100.0`):
 
 - `SwiftLame.xcframework.zip`
 - `lamemp3.xcframework.zip` (public C header is limited to `lame.h`)
@@ -110,7 +111,7 @@ To re-publish assets for an existing version release (for example `3.100.0`) wit
 changes, run the `Build XCFrameworks` workflow manually (`workflow_dispatch`) with:
 
 - `source_ref`: the tag/commit to build
-- `release_tag`: the existing release tag to overwrite assets on
+- `release_tag`: optional override for release tag/title (defaults to parsed version)
 
 ### Local build
 
