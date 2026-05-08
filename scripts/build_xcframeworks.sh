@@ -59,12 +59,11 @@ PKG_FILE="$ROOT_DIR/Package.swift"
 BUILD_ROOT="$ROOT_DIR/.build/xcframework"
 ARCHIVE_ROOT="$BUILD_ROOT/archives"
 DERIVED_DATA_PATH="$BUILD_ROOT/DerivedData"
-HEADERS_ROOT="$BUILD_ROOT/headers"
 LIBRARIES_ROOT="$BUILD_ROOT/libraries"
 OUTPUT_ABS="$ROOT_DIR/$OUTPUT_DIR"
 
 rm -rf "$BUILD_ROOT"
-mkdir -p "$ARCHIVE_ROOT" "$DERIVED_DATA_PATH" "$HEADERS_ROOT" "$LIBRARIES_ROOT" "$OUTPUT_ABS"
+mkdir -p "$ARCHIVE_ROOT" "$DERIVED_DATA_PATH" "$LIBRARIES_ROOT" "$OUTPUT_ABS"
 cd "$ROOT_DIR"
 
 contains_platform() {
@@ -121,7 +120,7 @@ archive_scheme() {
 }
 
 swift_framework_args=()
-lame_library_args=()
+lame_framework_args=()
 
 for entry in "${DESTINATIONS[@]}"; do
   destination="${entry%%|*}"
@@ -142,36 +141,34 @@ for entry in "${DESTINATIONS[@]}"; do
   fi
   swift_framework_args+=( -framework "$swift_framework" )
 
-  lame_dylib="$lame_archive/Products/usr/local/lib/liblamemp3.dylib"
-  if [[ ! -f "$lame_dylib" ]]; then
-    lame_framework_bin="$lame_archive/Products/Library/Frameworks/lamemp3.framework/lamemp3"
-    if [[ ! -f "$lame_framework_bin" ]]; then
-      lame_framework_bin="$lame_archive/Products/usr/local/lib/lamemp3.framework/lamemp3"
-    fi
-    if [[ -f "$lame_framework_bin" ]]; then
-      # xcodebuild -create-xcframework requires a recognized library extension for -library inputs.
-      # Some package archives emit lamemp3.framework/lamemp3 (no extension), so normalize to .dylib.
-      normalized_dylib="$LIBRARIES_ROOT/liblamemp3-${suffix}.dylib"
-      cp "$lame_framework_bin" "$normalized_dylib"
-      chmod +x "$normalized_dylib"
-      lame_dylib="$normalized_dylib"
-    else
-      echo "Missing lamemp3 dynamic library in archive: $lame_archive" >&2
-      exit 1
-    fi
+  lame_framework="$lame_archive/Products/Library/Frameworks/lamemp3.framework"
+  if [[ ! -d "$lame_framework" ]]; then
+    lame_framework="$lame_archive/Products/usr/local/lib/lamemp3.framework"
   fi
 
-  header_dir="$HEADERS_ROOT/$suffix"
-  mkdir -p "$header_dir"
-  cp "$ROOT_DIR/Sources/lame/include/lame.h" "$header_dir/lame.h"
-  cat > "$header_dir/module.modulemap" <<'MAP'
-module lamemp3 {
-  header "lame.h"
+  if [[ ! -d "$lame_framework" ]]; then
+    echo "Missing lamemp3.framework in archive: $lame_archive" >&2
+    exit 1
+  fi
+
+  normalized_lame_framework="$LIBRARIES_ROOT/$suffix/lamemp3.framework"
+  rm -rf "$normalized_lame_framework"
+  mkdir -p "$LIBRARIES_ROOT/$suffix"
+  cp -R "$lame_framework" "$normalized_lame_framework"
+
+  # Ensure lamemp3.framework exposes only lame.h as the public header surface.
+  mkdir -p "$normalized_lame_framework/Headers" "$normalized_lame_framework/Modules"
+  rm -f "$normalized_lame_framework/Headers/"*.h
+  cp "$ROOT_DIR/Sources/lame/include/lame.h" "$normalized_lame_framework/Headers/lame.h"
+  cat > "$normalized_lame_framework/Modules/module.modulemap" <<'MAP'
+framework module lamemp3 {
+  umbrella header "lame.h"
   export *
+  module * { export * }
 }
 MAP
 
-  lame_library_args+=( -library "$lame_dylib" -headers "$header_dir" )
+  lame_framework_args+=( -framework "$normalized_lame_framework" )
 done
 
 rm -rf "$OUTPUT_ABS/SwiftLame.xcframework" "$OUTPUT_ABS/lamemp3.xcframework"
@@ -181,7 +178,7 @@ xcodebuild -create-xcframework \
   -output "$OUTPUT_ABS/SwiftLame.xcframework"
 
 xcodebuild -create-xcframework \
-  "${lame_library_args[@]}" \
+  "${lame_framework_args[@]}" \
   -output "$OUTPUT_ABS/lamemp3.xcframework"
 
 if [[ "$ZIP_ASSETS" == true ]]; then
